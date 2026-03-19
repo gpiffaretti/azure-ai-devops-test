@@ -1,6 +1,4 @@
-const ModelClient = require("@azure-rest/ai-inference").default;
-const { isUnexpected } = require("@azure-rest/ai-inference");
-const { AzureKeyCredential } = require("@azure/core-auth");
+const { AzureOpenAI } = require("openai");
 const config = require("../config");
 const { toolDefinitions, executeTool } = require("./tools");
 
@@ -8,10 +6,12 @@ const { toolDefinitions, executeTool } = require("./tools");
  * Azure AI Foundry client singleton.
  * Authenticates via API key (swap to DefaultAzureCredential for managed identity).
  */
-const client = ModelClient(
-  config.aiFoundryEndpoint,
-  new AzureKeyCredential(config.aiFoundryApiKey)
-);
+const client = new AzureOpenAI({
+  endpoint: config.aiFoundryEndpoint,
+  apiKey: config.aiFoundryApiKey,
+  deployment: config.aiFoundryDeployment,
+  apiVersion: config.aiFoundryApiVersion,
+});
 
 /**
  * Send a chat completion request with streaming enabled.
@@ -29,31 +29,23 @@ async function streamChatCompletion(messages, onChunk, onToolCall, signal) {
   while (continueLoop) {
     continueLoop = false;
 
-    const response = await client.path("/chat/completions").post({
-      body: {
+    const stream = await client.chat.completions.create(
+      {
         model: config.aiFoundryModel,
         messages: conversationMessages,
         tools: toolDefinitions.length > 0 ? toolDefinitions : undefined,
         tool_choice: toolDefinitions.length > 0 ? "auto" : undefined,
         stream: true,
       },
-      signal,
-    });
-
-    if (isUnexpected(response)) {
-      throw new Error(
-        `AI Foundry error: ${response.status} - ${JSON.stringify(response.body)}`
-      );
-    }
-
-    const stream = response.body;
+      { signal }
+    );
 
     // Collect tool calls across streamed chunks
     const pendingToolCalls = {};
     let assistantContent = "";
     let hasToolCalls = false;
 
-    for await (const chunk of parseSSEStream(stream)) {
+    for await (const chunk of stream) {
       if (signal?.aborted) {
         throw new Error("Request aborted");
       }
@@ -122,47 +114,6 @@ async function streamChatCompletion(messages, onChunk, onToolCall, signal) {
 
       // Continue the loop to get the model's final response
       continueLoop = true;
-    }
-  }
-}
-
-/**
- * Parse an SSE stream (Node.js readable) into JSON chunks.
- * Azure AI Foundry streams data as SSE with "data: {...}" lines.
- */
-async function* parseSSEStream(stream) {
-  let buffer = "";
-
-  for await (const rawChunk of stream) {
-    buffer += typeof rawChunk === "string" ? rawChunk : rawChunk.toString();
-
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith("data:")) continue;
-
-      const data = trimmed.slice(5).trim();
-      if (data === "[DONE]") return;
-
-      try {
-        yield JSON.parse(data);
-      } catch {
-        // Skip malformed JSON lines
-      }
-    }
-  }
-
-  // Process remaining buffer
-  if (buffer.trim().startsWith("data:")) {
-    const data = buffer.trim().slice(5).trim();
-    if (data && data !== "[DONE]") {
-      try {
-        yield JSON.parse(data);
-      } catch {
-        // Skip
-      }
     }
   }
 }

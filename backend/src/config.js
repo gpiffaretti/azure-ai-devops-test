@@ -25,6 +25,8 @@ const config = {
   aiFoundryEndpoint: process.env.AZURE_AI_FOUNDRY_ENDPOINT,
   aiFoundryApiKey: process.env.AZURE_AI_FOUNDRY_API_KEY,
   aiFoundryModel: process.env.AZURE_AI_FOUNDRY_MODEL || "gpt-4o",
+  aiFoundryDeployment: process.env.AZURE_AI_FOUNDRY_DEPLOYMENT || "gpt-4o",
+  aiFoundryApiVersion: process.env.AZURE_AI_FOUNDRY_API_VERSION || "2024-04-01-preview",
 };
 
 module.exports = config;
