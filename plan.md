@@ -87,21 +87,49 @@
       ]
     },
     {
-      "name": "Phase 5 - Deployment and Infrastructure",
-      "objective": "Deploy all components to Azure",
+      "name": "Phase 5 - Infrastructure as Code and Deployment",
+      "objective": "Define infrastructure with Bicep and automate deployment with PowerShell scripts",
+      "status": "IN PROGRESS",
+      "directory_structure": {
+        "infrastructure/": "Bicep templates for Azure resources",
+        "scripts/": "PowerShell deployment scripts"
+      },
       "steps": [
-        "Deploy frontend to Azure Static Web Apps",
-        "Deploy backend to Azure App Service",
-        "Configure environment variables (client IDs, tenant ID, Foundry endpoint)",
-        "Enable CORS between frontend and backend",
-        "Enable HTTPS and custom domains if needed",
-        "Assign managed identity to backend (if used for Foundry)",
-        "Grant backend access to Foundry resource"
+        "Create infrastructure/ directory for Bicep files",
+        "Create main.bicep (orchestrates all resources)",
+        "Create staticWebApp.bicep (Azure Static Web Apps for frontend)",
+        "Create appService.bicep (Azure App Service for backend)",
+        "Create aiFoundry.bicep (Azure AI Foundry resource)",
+        "Create managedIdentity.bicep (for backend to access Foundry)",
+        "Create parameters files (parameters.dev.json, parameters.prod.json)",
+        "Create scripts/ directory for PowerShell deployment scripts",
+        "Create deploy.ps1 (main deployment orchestration script)",
+        "Create validate.ps1 (validates Bicep templates)",
+        "Create teardown.ps1 (removes resources for cleanup)",
+        "Add environment-specific configuration (dev/prod)",
+        "Configure CORS, HTTPS, and custom domains in Bicep",
+        "Set up managed identity assignments and RBAC in Bicep",
+        "Document deployment process in README"
       ],
       "deliverables": [
-        "Live frontend and backend",
-        "Secure communication across services",
-        "Working production deployment"
+        "Complete Bicep infrastructure templates",
+        "PowerShell deployment scripts for dev and prod",
+        "Parameterized configurations for multiple environments",
+        "Repeatable, automated deployment process"
+      ],
+      "bicep_files": [
+        "main.bicep - Main orchestration template",
+        "modules/staticWebApp.bicep - Frontend hosting",
+        "modules/appService.bicep - Backend API hosting",
+        "modules/aiFoundry.bicep - AI Foundry resource",
+        "modules/managedIdentity.bicep - Identity and RBAC",
+        "parameters.dev.json - Development environment config",
+        "parameters.prod.json - Production environment config"
+      ],
+      "powershell_scripts": [
+        "deploy.ps1 - Main deployment script with environment selection",
+        "validate.ps1 - Template validation and what-if analysis",
+        "teardown.ps1 - Resource cleanup script"
       ]
     },
     {
