@@ -49,7 +49,6 @@ jobs:
     with:
       environment: ${{ needs.setup.outputs.env_name }}
       resource_group: ${{ needs.setup.outputs.resource_group }}
-      force_deploy: true
     secrets: inherit
 
   backend:

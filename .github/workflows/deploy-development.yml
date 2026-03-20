@@ -4,12 +4,6 @@ on:
   push:
     branches: [development]
   workflow_dispatch:
-    inputs:
-      force_infra:
-        description: 'Force infrastructure deployment'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   infrastructure:
@@ -19,7 +13,6 @@ jobs:
       environment: dev
       resource_group: rg-azure-chatbot-dev
       parameters_file: infrastructure/parameters.dev.json
-      force_deploy: ${{ github.event.inputs.force_infra == 'true' }}
     secrets: inherit
 
   backend:

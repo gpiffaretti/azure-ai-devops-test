@@ -1,5 +1,5 @@
 name: Deploy Infrastructure
-description: Deploy Azure infrastructure using Bicep with what-if analysis
+description: Deploy Azure infrastructure using Bicep
 
 inputs:
   environment:
@@ -16,15 +16,7 @@ inputs:
     description: 'Bicep parameters file path (leave empty to auto-generate from dev template)'
     required: false
     default: ''
-  force_deploy:
-    description: 'Force deployment regardless of changes'
-    required: false
-    default: 'false'
-
 outputs:
-  has_changes:
-    description: 'Whether infrastructure changes were detected'
-    value: ${{ steps.whatif.outputs.has_changes }}
   frontend_url:
     description: 'Frontend URL'
     value: ${{ steps.get-outputs.outputs.frontend_url }}
@@ -94,47 +86,20 @@ runs:
           echo "No soft-deleted account found."
         fi
 
-    - name: What-if Analysis
-      id: whatif
-      shell: bash
-      run: |
-        PARAMS_FILE="${{ steps.params.outputs.file }}"
-        echo "Running what-if analysis..."
-
-        WHATIF_RESULT=$(az deployment group what-if \
-          --resource-group "${{ inputs.resource_group }}" \
-          --template-file infrastructure/main.bicep \
-          --parameters "@${PARAMS_FILE}" \
-          --no-pretty-print 2>&1) || WHATIF_RESULT=""
-
-        if echo "$WHATIF_RESULT" | grep -qiE "(Create|Delete|Modify)"; then
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          echo "::notice::Infrastructure changes detected"
-          echo "$WHATIF_RESULT" | head -50
-        else
-          echo "has_changes=false" >> $GITHUB_OUTPUT
-          echo "::notice::No infrastructure changes detected"
-        fi
-
     - name: Deploy Infrastructure
       shell: bash
       run: |
         PARAMS_FILE="${{ steps.params.outputs.file }}"
+        DEPLOYMENT_NAME="azure-chatbot-${{ inputs.environment }}-$(date +%Y%m%d-%H%M%S)"
+        echo "Deploying infrastructure (deployment: $DEPLOYMENT_NAME)..."
 
-        if [ "${{ steps.whatif.outputs.has_changes }}" == "true" ] || [ "${{ inputs.force_deploy }}" == "true" ]; then
-          DEPLOYMENT_NAME="azure-chatbot-${{ inputs.environment }}-$(date +%Y%m%d-%H%M%S)"
-          echo "Deploying infrastructure (deployment: $DEPLOYMENT_NAME)..."
+        az deployment group create \
+          --name "$DEPLOYMENT_NAME" \
+          --resource-group "${{ inputs.resource_group }}" \
+          --template-file infrastructure/main.bicep \
+          --parameters "@${PARAMS_FILE}"
 
-          az deployment group create \
-            --name "$DEPLOYMENT_NAME" \
-            --resource-group "${{ inputs.resource_group }}" \
-            --template-file infrastructure/main.bicep \
-            --parameters "@${PARAMS_FILE}"
-
-          echo "Infrastructure deployment completed successfully."
-        else
-          echo "No infrastructure changes detected. Skipping deployment."
-        fi
+        echo "Infrastructure deployment completed successfully."
 
     - name: Export Deployment Outputs
       id: get-outputs
