@@ -1,0 +1,967 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.41.2.15936",
+      "templateHash": "6482563212942252365"
+    }
+  },
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "metadata": {
+        "description": "Application name prefix used for all resources"
+      }
+    },
+    "environment": {
+      "type": "string",
+      "allowedValues": [
+        "dev",
+        "prod"
+      ],
+      "metadata": {
+        "description": "Environment name (dev, prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Primary Azure region for resources"
+      }
+    },
+    "staticWebAppSku": {
+      "type": "string",
+      "defaultValue": "Free",
+      "allowedValues": [
+        "Free",
+        "Standard"
+      ],
+      "metadata": {
+        "description": "Static Web App SKU"
+      }
+    },
+    "appServiceSkuName": {
+      "type": "string",
+      "defaultValue": "F1",
+      "allowedValues": [
+        "F1",
+        "B1",
+        "B2",
+        "S1",
+        "S2",
+        "P1v3",
+        "P2v3"
+      ],
+      "metadata": {
+        "description": "App Service Plan SKU"
+      }
+    },
+    "nodeVersion": {
+      "type": "string",
+      "defaultValue": "20-lts",
+      "metadata": {
+        "description": "Node.js version for App Service"
+      }
+    },
+    "aiModelDeploymentName": {
+      "type": "string",
+      "defaultValue": "gpt-4o",
+      "metadata": {
+        "description": "AI Foundry model deployment name"
+      }
+    },
+    "aiModelName": {
+      "type": "string",
+      "defaultValue": "gpt-4o",
+      "metadata": {
+        "description": "AI Foundry model name"
+      }
+    },
+    "aiModelVersion": {
+      "type": "string",
+      "defaultValue": "2024-08-06",
+      "metadata": {
+        "description": "AI Foundry model version"
+      }
+    },
+    "aiModelCapacity": {
+      "type": "int",
+      "defaultValue": 30,
+      "metadata": {
+        "description": "AI Foundry model capacity (TPM in thousands)"
+      }
+    },
+    "aiPublicNetworkAccess": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable public network access on AI Foundry"
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Entra ID tenant ID"
+      }
+    },
+    "backendClientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Backend API app registration client ID"
+      }
+    },
+    "spaClientId": {
+      "type": "string",
+      "metadata": {
+        "description": "SPA app registration client ID"
+      }
+    },
+    "customDomain": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Custom domain for Static Web App (optional)"
+      }
+    },
+    "appInsightsConnectionString": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Application Insights connection string (optional, Phase 6)"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-ai-foundry",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "appName": {
+            "value": "[parameters('appName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "modelDeploymentName": {
+            "value": "[parameters('aiModelDeploymentName')]"
+          },
+          "modelName": {
+            "value": "[parameters('aiModelName')]"
+          },
+          "modelVersion": {
+            "value": "[parameters('aiModelVersion')]"
+          },
+          "modelCapacity": {
+            "value": "[parameters('aiModelCapacity')]"
+          },
+          "publicNetworkAccess": {
+            "value": "[parameters('aiPublicNetworkAccess')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "13943031291159604743"
+            }
+          },
+          "parameters": {
+            "appName": {
+              "type": "string",
+              "metadata": {
+                "description": "Application name prefix"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name (dev, prod)"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the AI Foundry resource"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "S0",
+              "allowedValues": [
+                "S0"
+              ],
+              "metadata": {
+                "description": "SKU for the Cognitive Services account"
+              }
+            },
+            "modelDeploymentName": {
+              "type": "string",
+              "defaultValue": "gpt-4o",
+              "metadata": {
+                "description": "Model deployment name"
+              }
+            },
+            "modelName": {
+              "type": "string",
+              "defaultValue": "gpt-4o",
+              "metadata": {
+                "description": "Model name"
+              }
+            },
+            "modelVersion": {
+              "type": "string",
+              "defaultValue": "2024-08-06",
+              "metadata": {
+                "description": "Model version"
+              }
+            },
+            "modelCapacity": {
+              "type": "int",
+              "defaultValue": 30,
+              "metadata": {
+                "description": "Model capacity (TPM in thousands)"
+              }
+            },
+            "publicNetworkAccess": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable public network access"
+              }
+            }
+          },
+          "variables": {
+            "accountName": "[format('{0}-ai-{1}', parameters('appName'), parameters('environment'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2024-10-01",
+              "name": "[variables('accountName')]",
+              "location": "[parameters('location')]",
+              "kind": "OpenAI",
+              "sku": {
+                "name": "[parameters('sku')]"
+              },
+              "properties": {
+                "customSubDomainName": "[variables('accountName')]",
+                "publicNetworkAccess": "[if(parameters('publicNetworkAccess'), 'Enabled', 'Disabled')]",
+                "networkAcls": {
+                  "defaultAction": "[if(parameters('publicNetworkAccess'), 'Allow', 'Deny')]"
+                }
+              },
+              "tags": {
+                "environment": "[parameters('environment')]",
+                "application": "[parameters('appName')]",
+                "component": "ai"
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', variables('accountName'), parameters('modelDeploymentName'))]",
+              "sku": {
+                "name": "Standard",
+                "capacity": "[parameters('modelCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "[parameters('modelName')]",
+                  "version": "[parameters('modelVersion')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', variables('accountName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "endpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "AI Foundry endpoint URL"
+              },
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', variables('accountName')), '2024-10-01').endpoint]"
+            },
+            "id": {
+              "type": "string",
+              "metadata": {
+                "description": "AI Foundry resource ID"
+              },
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts', variables('accountName'))]"
+            },
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "AI Foundry account name"
+              },
+              "value": "[variables('accountName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-managed-identity",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "appName": {
+            "value": "[parameters('appName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "aiFoundryResourceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-ai-foundry'), '2025-04-01').outputs.id.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "18048262857059562255"
+            }
+          },
+          "parameters": {
+            "appName": {
+              "type": "string",
+              "metadata": {
+                "description": "Application name prefix"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name (dev, prod)"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the managed identity"
+              }
+            },
+            "aiFoundryResourceId": {
+              "type": "string",
+              "metadata": {
+                "description": "AI Foundry (Cognitive Services) resource ID for RBAC assignment"
+              }
+            }
+          },
+          "variables": {
+            "identityName": "[format('{0}-identity-{1}', parameters('appName'), parameters('environment'))]",
+            "cognitiveServicesOpenAIUserRoleId": "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[variables('identityName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "environment": "[parameters('environment')]",
+                "application": "[parameters('appName')]",
+                "component": "identity"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', last(split(parameters('aiFoundryResourceId'), '/')))]",
+              "name": "[guid(parameters('aiFoundryResourceId'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), variables('cognitiveServicesOpenAIUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('cognitiveServicesOpenAIUserRoleId'))]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "metadata": {
+                "description": "Managed Identity resource ID"
+              },
+              "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+            },
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Managed Identity principal ID"
+              },
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]"
+            },
+            "clientId": {
+              "type": "string",
+              "metadata": {
+                "description": "Managed Identity client ID"
+              },
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').clientId]"
+            },
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Managed Identity name"
+              },
+              "value": "[variables('identityName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-ai-foundry')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-static-web-app",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "appName": {
+            "value": "[parameters('appName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sku": {
+            "value": "[parameters('staticWebAppSku')]"
+          },
+          "customDomain": {
+            "value": "[parameters('customDomain')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "7527996641504638196"
+            }
+          },
+          "parameters": {
+            "appName": {
+              "type": "string",
+              "metadata": {
+                "description": "Application name prefix"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name (dev, prod)"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the Static Web App"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "Free",
+              "allowedValues": [
+                "Free",
+                "Standard"
+              ],
+              "metadata": {
+                "description": "SKU for the Static Web App"
+              }
+            },
+            "customDomain": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Custom domain (optional)"
+              }
+            }
+          },
+          "variables": {
+            "staticWebAppName": "[format('{0}-swa-{1}', parameters('appName'), parameters('environment'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/staticSites",
+              "apiVersion": "2024-04-01",
+              "name": "[variables('staticWebAppName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('sku')]",
+                "tier": "[parameters('sku')]"
+              },
+              "properties": {
+                "stagingEnvironmentPolicy": "Enabled",
+                "allowConfigFileUpdates": true,
+                "buildProperties": {
+                  "appLocation": "/frontend",
+                  "outputLocation": "build",
+                  "appBuildCommand": "npm run build"
+                }
+              },
+              "tags": {
+                "environment": "[parameters('environment')]",
+                "application": "[parameters('appName')]",
+                "component": "frontend"
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('customDomain')))]",
+              "type": "Microsoft.Web/staticSites/customDomains",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', variables('staticWebAppName'), parameters('customDomain'))]",
+              "properties": {},
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/staticSites', variables('staticWebAppName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "defaultHostname": {
+              "type": "string",
+              "metadata": {
+                "description": "Static Web App default hostname"
+              },
+              "value": "[reference(resourceId('Microsoft.Web/staticSites', variables('staticWebAppName')), '2024-04-01').defaultHostname]"
+            },
+            "id": {
+              "type": "string",
+              "metadata": {
+                "description": "Static Web App resource ID"
+              },
+              "value": "[resourceId('Microsoft.Web/staticSites', variables('staticWebAppName'))]"
+            },
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Static Web App name"
+              },
+              "value": "[variables('staticWebAppName')]"
+            },
+            "apiKey": {
+              "type": "string",
+              "metadata": {
+                "description": "Static Web App API key for deployment"
+              },
+              "value": "[listSecrets(resourceId('Microsoft.Web/staticSites', variables('staticWebAppName')), '2024-04-01').properties.apiKey]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-app-service",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "appName": {
+            "value": "[parameters('appName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "skuName": {
+            "value": "[parameters('appServiceSkuName')]"
+          },
+          "nodeVersion": {
+            "value": "[parameters('nodeVersion')]"
+          },
+          "managedIdentityId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-managed-identity'), '2025-04-01').outputs.id.value]"
+          },
+          "managedIdentityClientId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-managed-identity'), '2025-04-01').outputs.clientId.value]"
+          },
+          "frontendOrigin": {
+            "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'deploy-static-web-app'), '2025-04-01').outputs.defaultHostname.value)]"
+          },
+          "aiFoundryEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-ai-foundry'), '2025-04-01').outputs.endpoint.value]"
+          },
+          "aiFoundryDeployment": {
+            "value": "[parameters('aiModelDeploymentName')]"
+          },
+          "tenantId": {
+            "value": "[parameters('tenantId')]"
+          },
+          "backendClientId": {
+            "value": "[parameters('backendClientId')]"
+          },
+          "spaClientId": {
+            "value": "[parameters('spaClientId')]"
+          },
+          "appInsightsConnectionString": {
+            "value": "[parameters('appInsightsConnectionString')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "10593725084794149289"
+            }
+          },
+          "parameters": {
+            "appName": {
+              "type": "string",
+              "metadata": {
+                "description": "Application name prefix"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name (dev, prod)"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the App Service"
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "S1",
+              "allowedValues": [
+                "F1",
+                "B1",
+                "B2",
+                "S1",
+                "S2",
+                "P1v3",
+                "P2v3"
+              ],
+              "metadata": {
+                "description": "App Service Plan SKU"
+              }
+            },
+            "nodeVersion": {
+              "type": "string",
+              "defaultValue": "20-lts",
+              "metadata": {
+                "description": "Node.js version"
+              }
+            },
+            "managedIdentityId": {
+              "type": "string",
+              "metadata": {
+                "description": "Managed Identity principal ID for Cognitive Services access"
+              }
+            },
+            "managedIdentityClientId": {
+              "type": "string",
+              "metadata": {
+                "description": "Managed Identity client ID"
+              }
+            },
+            "frontendOrigin": {
+              "type": "string",
+              "metadata": {
+                "description": "Frontend origin for CORS"
+              }
+            },
+            "aiFoundryEndpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure AI Foundry endpoint"
+              }
+            },
+            "aiFoundryDeployment": {
+              "type": "string",
+              "defaultValue": "gpt-4o",
+              "metadata": {
+                "description": "Azure AI Foundry model deployment name"
+              }
+            },
+            "aiFoundryApiVersion": {
+              "type": "string",
+              "defaultValue": "2024-04-01-preview",
+              "metadata": {
+                "description": "Azure AI Foundry API version"
+              }
+            },
+            "tenantId": {
+              "type": "string",
+              "metadata": {
+                "description": "Entra ID tenant ID"
+              }
+            },
+            "backendClientId": {
+              "type": "string",
+              "metadata": {
+                "description": "Backend API app registration client ID"
+              }
+            },
+            "spaClientId": {
+              "type": "string",
+              "metadata": {
+                "description": "SPA app registration client ID"
+              }
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Application Insights connection string (optional)"
+              }
+            }
+          },
+          "variables": {
+            "appServicePlanName": "[format('{0}-plan-{1}', parameters('appName'), parameters('environment'))]",
+            "appServiceName": "[format('{0}-api-{1}', parameters('appName'), parameters('environment'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-04-01",
+              "name": "[variables('appServicePlanName')]",
+              "location": "[parameters('location')]",
+              "kind": "linux",
+              "sku": {
+                "name": "[parameters('skuName')]"
+              },
+              "properties": {
+                "reserved": true
+              },
+              "tags": {
+                "environment": "[parameters('environment')]",
+                "application": "[parameters('appName')]",
+                "component": "backend"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[variables('appServiceName')]",
+              "location": "[parameters('location')]",
+              "kind": "app,linux",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', parameters('managedIdentityId'))]": {}
+                }
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "linuxFxVersion": "[format('NODE|{0}', parameters('nodeVersion'))]",
+                  "alwaysOn": "[and(and(not(equals(parameters('skuName'), 'F1')), not(equals(parameters('skuName'), 'B1'))), not(equals(parameters('skuName'), 'B2')))]",
+                  "ftpsState": "Disabled",
+                  "minTlsVersion": "1.2",
+                  "http20Enabled": true,
+                  "cors": {
+                    "allowedOrigins": [
+                      "[parameters('frontendOrigin')]"
+                    ],
+                    "supportCredentials": false
+                  },
+                  "appSettings": [
+                    {
+                      "name": "AZURE_TENANT_ID",
+                      "value": "[parameters('tenantId')]"
+                    },
+                    {
+                      "name": "AZURE_CLIENT_ID",
+                      "value": "[parameters('backendClientId')]"
+                    },
+                    {
+                      "name": "AZURE_CLIENT_ID_SPA",
+                      "value": "[parameters('spaClientId')]"
+                    },
+                    {
+                      "name": "AZURE_AI_FOUNDRY_ENDPOINT",
+                      "value": "[parameters('aiFoundryEndpoint')]"
+                    },
+                    {
+                      "name": "AZURE_AI_FOUNDRY_DEPLOYMENT",
+                      "value": "[parameters('aiFoundryDeployment')]"
+                    },
+                    {
+                      "name": "AZURE_AI_FOUNDRY_MODEL",
+                      "value": "[parameters('aiFoundryDeployment')]"
+                    },
+                    {
+                      "name": "AZURE_AI_FOUNDRY_API_VERSION",
+                      "value": "[parameters('aiFoundryApiVersion')]"
+                    },
+                    {
+                      "name": "AZURE_CLIENT_ID_MANAGED_IDENTITY",
+                      "value": "[parameters('managedIdentityClientId')]"
+                    },
+                    {
+                      "name": "FRONTEND_ORIGIN",
+                      "value": "[parameters('frontendOrigin')]"
+                    },
+                    {
+                      "name": "PORT",
+                      "value": "8080"
+                    },
+                    {
+                      "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                      "value": "[format('~{0}', parameters('nodeVersion'))]"
+                    },
+                    {
+                      "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+                      "value": "true"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                      "value": "[parameters('appInsightsConnectionString')]"
+                    }
+                  ]
+                }
+              },
+              "tags": {
+                "environment": "[parameters('environment')]",
+                "application": "[parameters('appName')]",
+                "component": "backend"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "defaultHostname": {
+              "type": "string",
+              "metadata": {
+                "description": "App Service default hostname"
+              },
+              "value": "[reference(resourceId('Microsoft.Web/sites', variables('appServiceName')), '2024-04-01').defaultHostName]"
+            },
+            "url": {
+              "type": "string",
+              "metadata": {
+                "description": "App Service URL"
+              },
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', variables('appServiceName')), '2024-04-01').defaultHostName)]"
+            },
+            "id": {
+              "type": "string",
+              "metadata": {
+                "description": "App Service resource ID"
+              },
+              "value": "[resourceId('Microsoft.Web/sites', variables('appServiceName'))]"
+            },
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "App Service name"
+              },
+              "value": "[variables('appServiceName')]"
+            },
+            "planId": {
+              "type": "string",
+              "metadata": {
+                "description": "App Service Plan resource ID"
+              },
+              "value": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-ai-foundry')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-managed-identity')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-static-web-app')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "frontendUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Static Web App URL"
+      },
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'deploy-static-web-app'), '2025-04-01').outputs.defaultHostname.value)]"
+    },
+    "backendUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Backend API URL"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-app-service'), '2025-04-01').outputs.url.value]"
+    },
+    "aiFoundryEndpoint": {
+      "type": "string",
+      "metadata": {
+        "description": "AI Foundry endpoint"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-ai-foundry'), '2025-04-01').outputs.endpoint.value]"
+    },
+    "managedIdentityClientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Managed Identity client ID"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-managed-identity'), '2025-04-01').outputs.clientId.value]"
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Static Web App name"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-static-web-app'), '2025-04-01').outputs.name.value]"
+    },
+    "appServiceName": {
+      "type": "string",
+      "metadata": {
+        "description": "App Service name"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-app-service'), '2025-04-01').outputs.name.value]"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "value": "azure-chatbot"
+    },
+    "environment": {
+      "value": "dev"
+    },
+    "staticWebAppSku": {
+      "value": "Free"
+    },
+    "aiModelDeploymentName": {
+      "value": "gpt-4o"
+    },
+    "aiModelName": {
+      "value": "gpt-4o"
+    },
+    "aiModelVersion": {
+      "value": "2024-08-06"
+    },
+    "aiModelCapacity": {
+      "value": 30
+    },
+    "aiPublicNetworkAccess": {
+      "value": true
+    },
+    "tenantId": {
+      "value": "7b67396d-b6ea-45c0-a14b-376c1d394996"
+    },
+    "backendClientId": {
+      "value": "3ec72699-05f7-44ef-9e59-52adc77c3233"
+    },
+    "spaClientId": {
+      "value": "9efdd887-0057-4f48-846e-cc5685e3d9e8"
+    },
+    "customDomain": {
+      "value": ""
+    },
+    "appInsightsConnectionString": {
+      "value": ""
+    }
+  }
+}

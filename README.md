@@ -53,6 +53,19 @@ azure_chatbot/
 │   │       └── api.js            # Backend API client with token management
 │   ├── .env.example
 │   └── package.json
+├── infrastructure/
+│   ├── main.bicep                # Main orchestration template
+│   ├── modules/
+│   │   ├── staticWebApp.bicep    # Azure Static Web Apps (frontend)
+│   │   ├── appService.bicep      # Azure App Service (backend API)
+│   │   ├── aiFoundry.bicep       # Azure AI Foundry (OpenAI)
+│   │   └── managedIdentity.bicep # User-assigned identity + RBAC
+│   ├── parameters.dev.json       # Dev environment config
+│   └── parameters.prod.json      # Prod environment config
+├── scripts/
+│   ├── deploy.ps1                # Main deployment script
+│   ├── validate.ps1              # Template validation + what-if
+│   └── teardown.ps1              # Resource cleanup
 ├── plan.md
 └── README.md
 ```
@@ -175,20 +188,104 @@ Edit `backend/src/services/tools.js` to add new tools:
 2. Add the corresponding handler to `toolHandlers` object
 3. The handler receives parsed arguments and returns a JSON string result
 
-## Deployment (Azure)
+## Infrastructure & Deployment (Azure)
 
-### Frontend → Azure Static Web Apps
-```bash
-cd frontend
-npm run build
-# Deploy the build/ folder to Azure Static Web Apps
+The project uses **Bicep** templates for infrastructure-as-code and **PowerShell** scripts for deployment automation.
+
+### Project Structure (Infrastructure)
+
+```
+azure_chatbot/
+├── infrastructure/
+│   ├── main.bicep                    # Main orchestration template
+│   ├── modules/
+│   │   ├── staticWebApp.bicep        # Azure Static Web Apps (frontend)
+│   │   ├── appService.bicep          # Azure App Service (backend API)
+│   │   ├── aiFoundry.bicep           # Azure AI Foundry (OpenAI)
+│   │   └── managedIdentity.bicep     # User-assigned identity + RBAC
+│   ├── parameters.dev.json           # Dev environment parameters
+│   └── parameters.prod.json          # Prod environment parameters
+├── scripts/
+│   ├── deploy.ps1                    # Main deployment script
+│   ├── validate.ps1                  # Template validation + what-if
+│   └── teardown.ps1                  # Resource cleanup
 ```
 
-### Backend → Azure App Service
-```bash
-cd backend
-# Deploy to Azure App Service (Node.js runtime)
-# Set all environment variables in App Service Configuration
+### Prerequisites
+
+1. **Azure CLI** installed and logged in (`az login`)
+2. **Azure PowerShell** module (`Install-Module Az`)
+3. **Bicep CLI** (bundled with Azure CLI, or install standalone)
+4. **Azure Static Web Apps CLI** (`npm install -g @azure/static-web-apps-cli`)
+5. An **Azure Subscription** with permissions to create resources
+
+### Configuration
+
+Before deploying, update the parameters file for your target environment:
+
+- `infrastructure/parameters.dev.json` — Development
+- `infrastructure/parameters.prod.json` — Production
+
+Replace all `<YOUR_...>` placeholder values with your actual Azure configuration:
+
+| Parameter | Description |
+| --- | --- |
+| `tenantId` | Entra ID tenant ID |
+| `backendClientId` | Backend API app registration client ID |
+| `spaClientId` | SPA app registration client ID |
+
+### Validate Templates
+
+```powershell
+# Syntax check and what-if analysis
+.\scripts\validate.ps1 -Environment dev -ResourceGroupName rg-azure-chatbot-dev
+
+# With what-if preview of changes
+.\scripts\validate.ps1 -Environment dev -ResourceGroupName rg-azure-chatbot-dev -WhatIf
 ```
 
-See `plan.md` for the full deployment checklist (Phase 5).
+### Deploy
+
+```powershell
+# Full deployment (infrastructure + application code)
+.\scripts\deploy.ps1 -Environment dev -ResourceGroupName rg-azure-chatbot-dev -Location eastus2
+
+# Infrastructure only
+.\scripts\deploy.ps1 -Environment dev -ResourceGroupName rg-azure-chatbot-dev -InfraOnly
+
+# Application code only (requires prior infrastructure deployment)
+.\scripts\deploy.ps1 -Environment dev -ResourceGroupName rg-azure-chatbot-dev -AppOnly
+
+# Production deployment
+.\scripts\deploy.ps1 -Environment prod -ResourceGroupName rg-azure-chatbot-prod -Location eastus2
+```
+
+### Teardown
+
+```powershell
+# Interactive confirmation
+.\scripts\teardown.ps1 -Environment dev -ResourceGroupName rg-azure-chatbot-dev
+
+# Skip confirmation prompt
+.\scripts\teardown.ps1 -Environment dev -ResourceGroupName rg-azure-chatbot-dev -Force
+```
+
+> **Note:** Teardown deletes the resource group and all resources. Entra ID app registrations must be deleted manually from the Azure Portal.
+
+### What Gets Deployed
+
+| Resource | Service | Purpose |
+| --- | --- | --- |
+| Static Web App | `Microsoft.Web/staticSites` | React SPA frontend hosting |
+| App Service Plan | `Microsoft.Web/serverfarms` | Linux compute plan for backend |
+| App Service | `Microsoft.Web/sites` | Node.js Express backend API |
+| Cognitive Services (OpenAI) | `Microsoft.CognitiveServices/accounts` | AI Foundry with model deployment |
+| User-Assigned Identity | `Microsoft.ManagedIdentity` | Backend → AI Foundry auth (RBAC) |
+
+### Security
+
+- **HTTPS only** enforced on App Service
+- **CORS** configured to allow only the Static Web App origin
+- **Managed Identity** used for backend-to-AI-Foundry authentication (no API keys in production)
+- **FTPS disabled** on App Service
+- **TLS 1.2** minimum enforced

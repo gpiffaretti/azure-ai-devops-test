@@ -1,0 +1,163 @@
+name: Deploy PR Environment
+
+on:
+  pull_request:
+    types: [labeled, closed]
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch name for environment'
+        required: true
+        type: string
+      cleanup:
+        description: 'Cleanup environment'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  setup:
+    name: Setup Environment
+    if: |
+      (github.event_name == 'pull_request' && github.event.label.name == 'deploy-env' && github.event.action == 'labeled') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.cleanup != 'true')
+    runs-on: ubuntu-latest
+    outputs:
+      env_name: ${{ steps.env.outputs.env_name }}
+      resource_group: ${{ steps.env.outputs.resource_group }}
+    steps:
+      - name: Determine Environment Name
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            BRANCH="${{ github.event.inputs.branch_name }}"
+          else
+            BRANCH="${{ github.head_ref }}"
+          fi
+
+          # Sanitize branch name: replace non-alphanumeric with dash, collapse, trim, lowercase, max 20 chars
+          ENV_NAME=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | tr '[:upper:]' '[:lower:]' | cut -c1-20)
+
+          echo "env_name=$ENV_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=rg-azure-chatbot-$ENV_NAME" >> $GITHUB_OUTPUT
+          echo "::notice::PR Environment: $ENV_NAME (rg-azure-chatbot-$ENV_NAME)"
+
+  infrastructure:
+    name: Infrastructure
+    needs: setup
+    uses: ./.github/workflows/infrastructure.yml
+    with:
+      environment: ${{ needs.setup.outputs.env_name }}
+      resource_group: ${{ needs.setup.outputs.resource_group }}
+      force_deploy: true
+    secrets: inherit
+
+  backend:
+    name: Backend
+    needs: [setup, infrastructure]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Deploy Backend
+        uses: ./.github/actions/deploy-backend
+        with:
+          resource_group: ${{ needs.setup.outputs.resource_group }}
+          container_app_name: ${{ needs.infrastructure.outputs.container_app_name }}
+          acr_name: ${{ needs.infrastructure.outputs.acr_name }}
+
+  frontend:
+    name: Frontend
+    needs: [setup, infrastructure, backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Deploy Frontend
+        uses: ./.github/actions/deploy-frontend
+        with:
+          resource_group: ${{ needs.setup.outputs.resource_group }}
+          static_web_app_name: ${{ needs.infrastructure.outputs.static_web_app_name }}
+          backend_url: ${{ needs.infrastructure.outputs.backend_url }}
+          environment: ${{ needs.setup.outputs.env_name }}
+
+  summary:
+    name: Deployment Summary
+    needs: [setup, infrastructure, backend, frontend]
+    runs-on: ubuntu-latest
+    if: always() && needs.setup.result == 'success'
+    steps:
+      - name: Post Summary
+        run: |
+          echo "## PR Environment Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | \`${{ needs.setup.outputs.env_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource Group | \`${{ needs.setup.outputs.resource_group }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Infrastructure | ${{ needs.infrastructure.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ needs.backend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.frontend.result }}" == "success" ]; then
+            echo "**Frontend URL**: ${{ needs.infrastructure.outputs.frontend_url }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Backend URL**: ${{ needs.infrastructure.outputs.backend_url }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  cleanup:
+    name: Cleanup PR Environment
+    if: |
+      (github.event_name == 'pull_request' && github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'deploy-env')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.cleanup == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine Environment Name
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            BRANCH="${{ github.event.inputs.branch_name }}"
+          else
+            BRANCH="${{ github.head_ref }}"
+          fi
+
+          ENV_NAME=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | tr '[:upper:]' '[:lower:]' | cut -c1-20)
+          echo "env_name=$ENV_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=rg-azure-chatbot-$ENV_NAME" >> $GITHUB_OUTPUT
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Delete Resource Group
+        run: |
+          RG="${{ steps.env.outputs.resource_group }}"
+          echo "Checking if resource group $RG exists..."
+
+          EXISTS=$(az group exists --name "$RG")
+          if [ "$EXISTS" == "true" ]; then
+            echo "Deleting resource group $RG..."
+            az group delete --name "$RG" --yes --no-wait
+            echo "::notice::Resource group $RG deletion initiated"
+          else
+            echo "Resource group $RG does not exist. Nothing to clean up."
+          fi
+
+      - name: Cleanup Summary
+        run: |
+          echo "## PR Environment Cleanup" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Environment \`${{ steps.env.outputs.env_name }}\` cleanup initiated." >> $GITHUB_STEP_SUMMARY
+          echo "Resource group \`${{ steps.env.outputs.resource_group }}\` deletion in progress." >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,64 @@
+name: Deploy Development
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+    inputs:
+      force_infra:
+        description: 'Force infrastructure deployment'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  infrastructure:
+    name: Infrastructure
+    uses: ./.github/workflows/infrastructure.yml
+    with:
+      environment: dev
+      resource_group: rg-azure-chatbot-dev
+      parameters_file: infrastructure/parameters.dev.json
+      force_deploy: ${{ github.event.inputs.force_infra == 'true' }}
+    secrets: inherit
+
+  backend:
+    name: Backend
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Deploy Backend
+        uses: ./.github/actions/deploy-backend
+        with:
+          resource_group: rg-azure-chatbot-dev
+          container_app_name: ${{ needs.infrastructure.outputs.container_app_name }}
+          acr_name: ${{ needs.infrastructure.outputs.acr_name }}
+
+  frontend:
+    name: Frontend
+    needs: [infrastructure, backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Deploy Frontend
+        uses: ./.github/actions/deploy-frontend
+        with:
+          resource_group: rg-azure-chatbot-dev
+          static_web_app_name: ${{ needs.infrastructure.outputs.static_web_app_name }}
+          backend_url: ${{ needs.infrastructure.outputs.backend_url }}
+          environment: dev

@@ -1,0 +1,59 @@
+name: Deploy Backend
+description: Build and deploy backend to Azure Container Apps via ACR
+
+inputs:
+  resource_group:
+    description: 'Azure resource group name'
+    required: true
+  container_app_name:
+    description: 'Container App name'
+    required: true
+  acr_name:
+    description: 'Azure Container Registry name'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build and Push Image to ACR
+      shell: bash
+      run: |
+        IMAGE_TAG=$(date +%Y%m%d-%H%M%S)
+        echo "Building and pushing image backend:$IMAGE_TAG to ACR ${{ inputs.acr_name }}..."
+
+        az acr build \
+          --registry ${{ inputs.acr_name }} \
+          --image backend:$IMAGE_TAG \
+          --file backend/Dockerfile \
+          backend/
+
+        echo "IMAGE=${{ inputs.acr_name }}.azurecr.io/backend:$IMAGE_TAG" >> $GITHUB_ENV
+
+    - name: Update Container App
+      shell: bash
+      run: |
+        echo "Updating Container App ${{ inputs.container_app_name }} with image $IMAGE..."
+        az containerapp update \
+          --name ${{ inputs.container_app_name }} \
+          --resource-group ${{ inputs.resource_group }} \
+          --image $IMAGE
+
+    - name: Health Check
+      shell: bash
+      run: |
+        FQDN=$(az containerapp show \
+          --name ${{ inputs.container_app_name }} \
+          --resource-group ${{ inputs.resource_group }} \
+          --query "properties.configuration.ingress.fqdn" -o tsv)
+
+        echo "Running health check on https://$FQDN..."
+        for i in $(seq 1 30); do
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "https://$FQDN/" 2>/dev/null || echo "000")
+          if [ "$HTTP_CODE" -ge "200" ] && [ "$HTTP_CODE" -lt "500" ]; then
+            echo "✓ Backend is responding (HTTP $HTTP_CODE)"
+            exit 0
+          fi
+          echo "Attempt $i/30 - HTTP $HTTP_CODE, waiting 10s..."
+          sleep 10
+        done
+        echo "::warning::Backend health check timed out after 5 minutes"

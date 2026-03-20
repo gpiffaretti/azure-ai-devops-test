@@ -1,0 +1,158 @@
+name: Deploy Infrastructure
+description: Deploy Azure infrastructure using Bicep with what-if analysis
+
+inputs:
+  environment:
+    description: 'Target environment'
+    required: true
+  resource_group:
+    description: 'Azure resource group'
+    required: true
+  location:
+    description: 'Azure region'
+    required: false
+    default: 'eastus2'
+  parameters_file:
+    description: 'Bicep parameters file path (leave empty to auto-generate from dev template)'
+    required: false
+    default: ''
+  force_deploy:
+    description: 'Force deployment regardless of changes'
+    required: false
+    default: 'false'
+
+outputs:
+  has_changes:
+    description: 'Whether infrastructure changes were detected'
+    value: ${{ steps.whatif.outputs.has_changes }}
+  frontend_url:
+    description: 'Frontend URL'
+    value: ${{ steps.get-outputs.outputs.frontend_url }}
+  backend_url:
+    description: 'Backend URL'
+    value: ${{ steps.get-outputs.outputs.backend_url }}
+  container_app_name:
+    description: 'Container App name'
+    value: ${{ steps.get-outputs.outputs.container_app_name }}
+  acr_name:
+    description: 'ACR name'
+    value: ${{ steps.get-outputs.outputs.acr_name }}
+  static_web_app_name:
+    description: 'Static Web App name'
+    value: ${{ steps.get-outputs.outputs.static_web_app_name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare Parameters File
+      id: params
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.parameters_file }}" ] && [ -f "${{ inputs.parameters_file }}" ]; then
+          echo "Using provided parameters file: ${{ inputs.parameters_file }}"
+          echo "file=${{ inputs.parameters_file }}" >> $GITHUB_OUTPUT
+        else
+          echo "Generating parameters file for environment '${{ inputs.environment }}'..."
+          PARAMS_FILE="/tmp/parameters.${{ inputs.environment }}.json"
+          jq --arg env "${{ inputs.environment }}" \
+             '.parameters.environment.value = $env | .parameters.staticWebAppSku.value = "Free" | .parameters.aiModelCapacity.value = 30' \
+             infrastructure/parameters.dev.json > "$PARAMS_FILE"
+          echo "file=$PARAMS_FILE" >> $GITHUB_OUTPUT
+          cat "$PARAMS_FILE"
+        fi
+
+    - name: Ensure Resource Group
+      shell: bash
+      run: |
+        az group create \
+          --name "${{ inputs.resource_group }}" \
+          --location "${{ inputs.location }}" \
+          --tags environment="${{ inputs.environment }}"
+
+    - name: Purge Soft-Deleted Cognitive Services
+      shell: bash
+      run: |
+        ACCOUNT_NAME="azure-chatbot-ai-${{ inputs.environment }}"
+        echo "Checking for soft-deleted Cognitive Services account '$ACCOUNT_NAME'..."
+
+        DELETED=$(az cognitiveservices account list-deleted \
+          --query "[?name=='$ACCOUNT_NAME']" -o tsv 2>/dev/null || echo "")
+
+        if [ -n "$DELETED" ]; then
+          echo "Found soft-deleted account. Attempting purge..."
+          LOCATION=$(az cognitiveservices account list-deleted \
+            --query "[?name=='$ACCOUNT_NAME'].location | [0]" -o tsv 2>/dev/null || echo "")
+          if [ -n "$LOCATION" ]; then
+            az cognitiveservices account purge \
+              --name "$ACCOUNT_NAME" \
+              --resource-group "${{ inputs.resource_group }}" \
+              --location "$LOCATION" 2>/dev/null || true
+            echo "Waiting for purge propagation..."
+            sleep 15
+          fi
+        else
+          echo "No soft-deleted account found."
+        fi
+
+    - name: What-if Analysis
+      id: whatif
+      shell: bash
+      run: |
+        PARAMS_FILE="${{ steps.params.outputs.file }}"
+        echo "Running what-if analysis..."
+
+        WHATIF_RESULT=$(az deployment group what-if \
+          --resource-group "${{ inputs.resource_group }}" \
+          --template-file infrastructure/main.bicep \
+          --parameters "@${PARAMS_FILE}" \
+          --no-pretty-print 2>&1) || WHATIF_RESULT=""
+
+        if echo "$WHATIF_RESULT" | grep -qiE "(Create|Delete|Modify)"; then
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "::notice::Infrastructure changes detected"
+          echo "$WHATIF_RESULT" | head -50
+        else
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "::notice::No infrastructure changes detected"
+        fi
+
+    - name: Deploy Infrastructure
+      shell: bash
+      run: |
+        PARAMS_FILE="${{ steps.params.outputs.file }}"
+
+        if [ "${{ steps.whatif.outputs.has_changes }}" == "true" ] || [ "${{ inputs.force_deploy }}" == "true" ]; then
+          DEPLOYMENT_NAME="azure-chatbot-${{ inputs.environment }}-$(date +%Y%m%d-%H%M%S)"
+          echo "Deploying infrastructure (deployment: $DEPLOYMENT_NAME)..."
+
+          az deployment group create \
+            --name "$DEPLOYMENT_NAME" \
+            --resource-group "${{ inputs.resource_group }}" \
+            --template-file infrastructure/main.bicep \
+            --parameters "@${PARAMS_FILE}"
+
+          echo "Infrastructure deployment completed successfully."
+        else
+          echo "No infrastructure changes detected. Skipping deployment."
+        fi
+
+    - name: Export Deployment Outputs
+      id: get-outputs
+      shell: bash
+      run: |
+        OUTPUTS=$(az deployment group list \
+          --resource-group "${{ inputs.resource_group }}" \
+          --top 1 \
+          --query "[0].properties.outputs" -o json 2>/dev/null || echo "null")
+
+        if [ "$OUTPUTS" == "null" ] || [ -z "$OUTPUTS" ]; then
+          echo "::error::No deployment outputs found"
+          exit 1
+        fi
+
+        echo "frontend_url=$(echo "$OUTPUTS" | jq -r '.frontendUrl.value')" >> $GITHUB_OUTPUT
+        echo "backend_url=$(echo "$OUTPUTS" | jq -r '.backendUrl.value')" >> $GITHUB_OUTPUT
+        echo "container_app_name=$(echo "$OUTPUTS" | jq -r '.containerAppName.value')" >> $GITHUB_OUTPUT
+        echo "acr_name=$(echo "$OUTPUTS" | jq -r '.acrName.value')" >> $GITHUB_OUTPUT
+        echo "static_web_app_name=$(echo "$OUTPUTS" | jq -r '.staticWebAppName.value')" >> $GITHUB_OUTPUT
+        echo "::notice::Deployment outputs exported successfully"
