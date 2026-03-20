@@ -1,0 +1,55 @@
+name: Update Azure AD Redirect URI
+description: Updates the redirect URI for an Azure AD app registration
+
+inputs:
+  app_client_id:
+    description: 'Azure AD App Registration client ID'
+    required: true
+  redirect_uri:
+    description: 'Redirect URI to add (e.g., https://your-app.azurestaticapps.net)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Update Redirect URI
+      shell: bash
+      run: |
+        echo "Updating redirect URI for app ${{ inputs.app_client_id }}"
+        
+        # Get current redirect URIs for SPA
+        CURRENT_URIS=$(az ad app show \
+          --id "${{ inputs.app_client_id }}" \
+          --query "spa.redirectUris" -o json)
+        
+        echo "Current SPA redirect URIs: $CURRENT_URIS"
+        
+        # Check if the URI already exists
+        if echo "$CURRENT_URIS" | grep -q "${{ inputs.redirect_uri }}"; then
+          echo "Redirect URI already exists. No update needed."
+        else
+          echo "Adding redirect URI: ${{ inputs.redirect_uri }}"
+          
+          # Build the list of redirect URIs (existing + new)
+          if [ "$CURRENT_URIS" == "null" ] || [ "$CURRENT_URIS" == "[]" ]; then
+            # No existing URIs - create array with just the new one
+            REDIRECT_URIS_JSON="[\"${{ inputs.redirect_uri }}\"]"
+          else
+            # Append to existing URIs
+            REDIRECT_URIS_JSON=$(echo "$CURRENT_URIS" | jq --arg uri "${{ inputs.redirect_uri }}" '. + [$uri]')
+          fi
+          
+          # Update with SPA redirect URIs (preserves all existing URIs)
+          az ad app update \
+            --id "${{ inputs.app_client_id }}" \
+            --set spa.redirectUris="$REDIRECT_URIS_JSON"
+          
+          echo "✅ Redirect URI added successfully"
+        fi
+        
+        # Verify the update
+        UPDATED_URIS=$(az ad app show \
+          --id "${{ inputs.app_client_id }}" \
+          --query "spa.redirectUris" -o json)
+        
+        echo "Updated redirect URIs: $UPDATED_URIS"

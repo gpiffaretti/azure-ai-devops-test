@@ -59,3 +59,9 @@ jobs:
           backend_url: ${{ needs.infrastructure.outputs.backend_url }}
           backend_client_id: ${{ secrets.BACKEND_CLIENT_ID }}
           environment: dev
+
+      - name: Update Redirect URI
+        uses: ./.github/actions/update-redirect-uri
+        with:
+          app_client_id: ${{ secrets.SPA_CLIENT_ID }}
+          redirect_uri: ${{ needs.infrastructure.outputs.frontend_url }}

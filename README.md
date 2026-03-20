@@ -108,7 +108,31 @@ azure_chatbot/
 1. Go to **Enterprise Applications** > find `azure-chatbot-api`
 2. **Users and groups** > Add user/group > Assign the `ChatUser` or `ChatAdmin` role
 
-### 2. Azure AI Foundry
+### 2. Deployment Service Principal (for CI/CD)
+
+If using GitHub Actions or automated deployments, the service principal needs additional permissions to update redirect URIs:
+
+1. Go to **Azure Portal > Microsoft Entra ID > App registrations**
+2. Find your deployment service principal (the one with `AZURE_CLIENT_ID` used in GitHub secrets)
+3. Navigate to **API permissions** > **Add a permission** > **Microsoft Graph** > **Application permissions**
+4. Search for and add: `Application.ReadWrite.All`
+5. Click **Grant admin consent** (requires Global Administrator role)
+
+**Why this is needed:** The deployment pipeline automatically updates the SPA app registration's redirect URIs to match the deployed Static Web App URL, preventing authentication errors when the URL changes (especially for PR environments).
+
+Alternatively, using Azure CLI:
+```bash
+# Assign Application.ReadWrite.All permission
+az ad app permission add \
+  --id <AZURE_CLIENT_ID> \
+  --api 00000003-0000-0000-c000-000000000000 \
+  --api-permissions 1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9=Role
+
+# Grant admin consent
+az ad app permission admin-consent --id <AZURE_CLIENT_ID>
+```
+
+### 3. Azure AI Foundry
 1. Create an **Azure AI Foundry** resource
 2. Deploy a model (e.g., `gpt-4o`)
 3. Note the **Endpoint URL** and **API Key**
