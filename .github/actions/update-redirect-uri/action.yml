@@ -42,12 +42,13 @@ runs:
           echo "DEBUG: REDIRECT_URIS_JSON=$REDIRECT_URIS_JSON"
           
           # Update with SPA redirect URIs (preserves all existing URIs)
-          # Use a temporary file to avoid shell quoting issues
-          echo "$REDIRECT_URIS_JSON" > /tmp/redirect_uris.json
+          # Convert JSON array to space-separated list for Azure CLI
+          REDIRECT_URIS_LIST=$(echo "$REDIRECT_URIS_JSON" | jq -r '.[]' | tr '\n' ' ')
+          echo "DEBUG: REDIRECT_URIS_LIST=$REDIRECT_URIS_LIST"
+          
           az ad app update \
             --id "${{ inputs.app_client_id }}" \
-            --set spa.redirectUris@/tmp/redirect_uris.json
-          rm /tmp/redirect_uris.json
+            --spa-redirect-uris $REDIRECT_URIS_LIST
           
           echo "✅ Redirect URI added successfully"
         fi
