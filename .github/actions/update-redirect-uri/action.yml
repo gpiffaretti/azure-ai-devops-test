@@ -39,10 +39,15 @@ runs:
             REDIRECT_URIS_JSON=$(echo "$CURRENT_URIS" | jq --arg uri "${{ inputs.redirect_uri }}" '. + [$uri]')
           fi
           
+          echo "DEBUG: REDIRECT_URIS_JSON=$REDIRECT_URIS_JSON"
+          
           # Update with SPA redirect URIs (preserves all existing URIs)
+          # Use a temporary file to avoid shell quoting issues
+          echo "$REDIRECT_URIS_JSON" > /tmp/redirect_uris.json
           az ad app update \
             --id "${{ inputs.app_client_id }}" \
-            --set spa.redirectUris=$REDIRECT_URIS_JSON
+            --set spa.redirectUris@/tmp/redirect_uris.json
+          rm /tmp/redirect_uris.json
           
           echo "✅ Redirect URI added successfully"
         fi
