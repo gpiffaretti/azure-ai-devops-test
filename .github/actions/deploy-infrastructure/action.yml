@@ -107,8 +107,8 @@ runs:
       run: |
         OUTPUTS=$(az deployment group list \
           --resource-group "${{ inputs.resource_group }}" \
-          --top 1 \
-          --query "[0].properties.outputs" -o json 2>/dev/null || echo "null")
+          --query "sort_by([].{name:name, timestamp:properties.timestamp, outputs:properties.outputs}, &timestamp) | [-1].outputs" \
+          -o json 2>/dev/null || echo "null")
 
         if [ "$OUTPUTS" == "null" ] || [ -z "$OUTPUTS" ]; then
           echo "::error::No deployment outputs found"
