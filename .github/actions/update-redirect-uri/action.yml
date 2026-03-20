@@ -42,7 +42,7 @@ runs:
           # Update with SPA redirect URIs (preserves all existing URIs)
           az ad app update \
             --id "${{ inputs.app_client_id }}" \
-            --set spa.redirectUris="$REDIRECT_URIS_JSON"
+            --set spa.redirectUris=$REDIRECT_URIS_JSON
           
           echo "✅ Redirect URI added successfully"
         fi
