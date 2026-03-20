@@ -15,19 +15,26 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Login to ACR
+      shell: bash
+      run: az acr login --name ${{ inputs.acr_name }}
+
     - name: Build and Push Image to ACR
       shell: bash
       run: |
         IMAGE_TAG=$(date +%Y%m%d-%H%M%S)
-        echo "Building and pushing image backend:$IMAGE_TAG to ACR ${{ inputs.acr_name }}..."
+        IMAGE="${{ inputs.acr_name }}.azurecr.io/backend:$IMAGE_TAG"
+        echo "Building image $IMAGE locally..."
 
-        az acr build \
-          --registry ${{ inputs.acr_name }} \
-          --image backend:$IMAGE_TAG \
-          --file backend/Dockerfile \
+        docker build \
+          -t $IMAGE \
+          -f backend/Dockerfile \
           backend/
 
-        echo "IMAGE=${{ inputs.acr_name }}.azurecr.io/backend:$IMAGE_TAG" >> $GITHUB_ENV
+        echo "Pushing image to ACR..."
+        docker push $IMAGE
+
+        echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
     - name: Update Container App
       shell: bash
