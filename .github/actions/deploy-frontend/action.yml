@@ -8,8 +8,20 @@ inputs:
   static_web_app_name:
     description: 'Static Web App name'
     required: true
+  azure_client_id:
+    description: 'Entra ID SPA App Registration client ID'
+    required: true
+  azure_tenant_id:
+    description: 'Entra ID tenant ID'
+    required: true
+  frontend_url:
+    description: 'Frontend URL (used as redirect URI)'
+    required: true
   backend_url:
     description: 'Backend API URL'
+    required: true
+  backend_client_id:
+    description: 'Backend app registration client ID (used to build API scope)'
     required: true
   environment:
     description: 'Deployment environment'
@@ -34,7 +46,11 @@ runs:
       shell: bash
       working-directory: frontend
       env:
+        REACT_APP_AZURE_CLIENT_ID: ${{ inputs.azure_client_id }}
+        REACT_APP_AZURE_TENANT_ID: ${{ inputs.azure_tenant_id }}
+        REACT_APP_AZURE_REDIRECT_URI: ${{ inputs.frontend_url }}
         REACT_APP_API_BASE_URL: ${{ inputs.backend_url }}
+        REACT_APP_API_SCOPE: api://${{ inputs.backend_client_id }}/access_as_user
       run: npm run build
 
     - name: Get SWA Deployment Token

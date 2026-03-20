@@ -1,14 +1,24 @@
 const { AzureOpenAI } = require("openai");
+const { DefaultAzureCredential } = require("@azure/identity");
 const config = require("../config");
 const { toolDefinitions, executeTool } = require("./tools");
 
 /**
  * Azure AI Foundry client singleton.
- * Authenticates via API key (swap to DefaultAzureCredential for managed identity).
+ * Uses API key for local development, managed identity for Azure deployment.
  */
 const client = new AzureOpenAI({
   endpoint: config.aiFoundryEndpoint,
-  apiKey: config.aiFoundryApiKey,
+  apiKey: config.aiFoundryApiKey || undefined,
+  azureADTokenProvider: config.aiFoundryApiKey 
+    ? undefined 
+    : async () => {
+        const credential = new DefaultAzureCredential({
+          managedIdentityClientId: config.managedIdentityClientId,
+        });
+        const token = await credential.getToken("https://cognitiveservices.azure.com/.default");
+        return token.token;
+      },
   deployment: config.aiFoundryDeployment,
   apiVersion: config.aiFoundryApiVersion,
 });

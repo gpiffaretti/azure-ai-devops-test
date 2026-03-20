@@ -27,6 +27,9 @@ const config = {
   aiFoundryModel: process.env.AZURE_AI_FOUNDRY_MODEL || "gpt-4o",
   aiFoundryDeployment: process.env.AZURE_AI_FOUNDRY_DEPLOYMENT || "gpt-4o",
   aiFoundryApiVersion: process.env.AZURE_AI_FOUNDRY_API_VERSION || "2024-04-01-preview",
+  
+  // Managed Identity (for Azure deployment)
+  managedIdentityClientId: process.env.AZURE_CLIENT_ID_MANAGED_IDENTITY,
 };
 
 module.exports = config;

@@ -1,0 +1,58 @@
+name: Update Azure AD Redirect URI
+description: Updates the redirect URI for an Azure AD app registration
+
+inputs:
+  app_client_id:
+    description: 'Azure AD App Registration client ID'
+    required: true
+  redirect_uri:
+    description: 'Redirect URI to add (e.g., https://your-app.azurestaticapps.net)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Update Redirect URI
+      shell: bash
+      run: |
+        echo "Updating SPA redirect URI for app ${{ inputs.app_client_id }}"
+
+        # Get current SPA redirect URIs
+        CURRENT_URIS=$(az ad app show \
+          --id "${{ inputs.app_client_id }}" \
+          --query "spa.redirectUris" -o json)
+
+        echo "Current SPA redirect URIs: $CURRENT_URIS"
+
+        # Check if the URI already exists
+        if echo "$CURRENT_URIS" | grep -qF "${{ inputs.redirect_uri }}"; then
+          echo "Redirect URI already exists. No update needed."
+        else
+          echo "Adding redirect URI: ${{ inputs.redirect_uri }}"
+          
+          # Build the list of redirect URIs (existing + new)
+          if [ "$CURRENT_URIS" = "null" ] || [ "$CURRENT_URIS" = "[]" ]; then
+            REDIRECT_URIS_JSON=$(printf '["%s"]' "${{ inputs.redirect_uri }}")
+          else
+            REDIRECT_URIS_JSON=$(echo "$CURRENT_URIS" | jq -c --arg uri "${{ inputs.redirect_uri }}" '. + [$uri]')
+          fi
+          
+          echo "DEBUG: REDIRECT_URIS_JSON=$REDIRECT_URIS_JSON"
+          
+          BODY="{\"spa\":{\"redirectUris\":$REDIRECT_URIS_JSON}}"
+          echo "DEBUG BODY: $BODY"
+          
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications(appId='${{ inputs.app_client_id }}')" \
+            --headers "Content-Type=application/json" \
+            --body "$BODY"
+          
+          echo "✅ Redirect URI added successfully"
+        fi
+
+        # Verify the update
+        UPDATED_URIS=$(az ad app show \
+          --id "${{ inputs.app_client_id }}" \
+          --query "spa.redirectUris" -o json)
+
+        echo "Updated SPA redirect URIs: $UPDATED_URIS"
