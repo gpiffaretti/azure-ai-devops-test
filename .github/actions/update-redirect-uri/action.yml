@@ -17,12 +17,12 @@ runs:
       run: |
         echo "Updating redirect URI for app ${{ inputs.app_client_id }}"
         
-        # Get current redirect URIs for SPA
+        # Get current web redirect URIs
         CURRENT_URIS=$(az ad app show \
           --id "${{ inputs.app_client_id }}" \
-          --query "spa.redirectUris" -o json)
+          --query "web.redirectUris" -o json)
         
-        echo "Current SPA redirect URIs: $CURRENT_URIS"
+        echo "Current web redirect URIs: $CURRENT_URIS"
         
         # Check if the URI already exists
         if echo "$CURRENT_URIS" | grep -q "${{ inputs.redirect_uri }}"; then
@@ -41,14 +41,14 @@ runs:
           
           echo "DEBUG: REDIRECT_URIS_JSON=$REDIRECT_URIS_JSON"
           
-          # Update with SPA redirect URIs (preserves all existing URIs)
+          # Update with web redirect URIs (preserves all existing URIs)
           # Convert JSON array to space-separated list for Azure CLI
           REDIRECT_URIS_LIST=$(echo "$REDIRECT_URIS_JSON" | jq -r '.[]' | tr '\n' ' ')
           echo "DEBUG: REDIRECT_URIS_LIST=$REDIRECT_URIS_LIST"
           
           az ad app update \
             --id "${{ inputs.app_client_id }}" \
-            --spa-redirect-uris $REDIRECT_URIS_LIST
+            --web-redirect-uris $REDIRECT_URIS_LIST
           
           echo "✅ Redirect URI added successfully"
         fi
@@ -56,6 +56,6 @@ runs:
         # Verify the update
         UPDATED_URIS=$(az ad app show \
           --id "${{ inputs.app_client_id }}" \
-          --query "spa.redirectUris" -o json)
+          --query "web.redirectUris" -o json)
         
         echo "Updated redirect URIs: $UPDATED_URIS"
