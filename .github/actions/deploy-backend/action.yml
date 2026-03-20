@@ -53,9 +53,9 @@ runs:
           --resource-group ${{ inputs.resource_group }} \
           --query "properties.configuration.ingress.fqdn" -o tsv)
 
-        echo "Running health check on https://$FQDN..."
+        echo "Running health check on https://$FQDN/health..."
         for i in $(seq 1 30); do
-          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "https://$FQDN/" 2>/dev/null || echo "000")
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "https://$FQDN/health" 2>/dev/null || echo "000")
           if [ "$HTTP_CODE" -ge "200" ] && [ "$HTTP_CODE" -lt "500" ]; then
             echo "✓ Backend is responding (HTTP $HTTP_CODE)"
             exit 0

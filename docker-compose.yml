@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: azure-chatbot-backend
+    ports:
+      - "4000:4000"
+    environment:
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_ID_SPA=${AZURE_CLIENT_ID_SPA}
+      - AZURE_AI_FOUNDRY_ENDPOINT=${AZURE_AI_FOUNDRY_ENDPOINT}
+      - AZURE_AI_FOUNDRY_API_KEY=${AZURE_AI_FOUNDRY_API_KEY}
+      - AZURE_AI_FOUNDRY_MODEL=${AZURE_AI_FOUNDRY_MODEL}
+      - AZURE_AI_FOUNDRY_DEPLOYMENT=${AZURE_AI_FOUNDRY_DEPLOYMENT}
+      - AZURE_AI_FOUNDRY_API_VERSION=${AZURE_AI_FOUNDRY_API_VERSION}
+      - PORT=4000
+      - FRONTEND_ORIGIN=http://localhost:3000
+      - APPLICATIONINSIGHTS_CONNECTION_STRING=${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+    networks:
+      - azure-chatbot-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: azure-chatbot-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_AZURE_CLIENT_ID=${REACT_APP_AZURE_CLIENT_ID}
+      - REACT_APP_AZURE_TENANT_ID=${REACT_APP_AZURE_TENANT_ID}
+      - REACT_APP_AZURE_REDIRECT_URI=${REACT_APP_AZURE_REDIRECT_URI}
+      - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
+      - REACT_APP_API_SCOPE=${REACT_APP_API_SCOPE}
+    depends_on:
+      - backend
+    networks:
+      - azure-chatbot-network
+    restart: unless-stopped
+
+networks:
+  azure-chatbot-network:
+    driver: bridge
