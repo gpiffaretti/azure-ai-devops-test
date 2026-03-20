@@ -89,7 +89,11 @@ jobs:
         with:
           resource_group: ${{ needs.setup.outputs.resource_group }}
           static_web_app_name: ${{ needs.infrastructure.outputs.static_web_app_name }}
+          azure_client_id: ${{ secrets.SPA_CLIENT_ID }}
+          azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+          frontend_url: ${{ needs.infrastructure.outputs.frontend_url }}
           backend_url: ${{ needs.infrastructure.outputs.backend_url }}
+          backend_client_id: ${{ secrets.BACKEND_CLIENT_ID }}
           environment: ${{ needs.setup.outputs.env_name }}
 
   summary:
