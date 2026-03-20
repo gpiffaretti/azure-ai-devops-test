@@ -13,7 +13,9 @@ const client = new AzureOpenAI({
   azureADTokenProvider: config.aiFoundryApiKey 
     ? undefined 
     : async () => {
-        const credential = new DefaultAzureCredential();
+        const credential = new DefaultAzureCredential({
+          managedIdentityClientId: config.managedIdentityClientId,
+        });
         const token = await credential.getToken("https://cognitiveservices.azure.com/.default");
         return token.token;
       },
