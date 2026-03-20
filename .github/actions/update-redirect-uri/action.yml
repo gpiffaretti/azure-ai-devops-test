@@ -16,14 +16,14 @@ runs:
       shell: bash
       run: |
         echo "Updating SPA redirect URI for app ${{ inputs.app_client_id }}"
-        
+
         # Get current SPA redirect URIs
         CURRENT_URIS=$(az ad app show \
           --id "${{ inputs.app_client_id }}" \
           --query "spa.redirectUris" -o json)
-        
+
         echo "Current SPA redirect URIs: $CURRENT_URIS"
-        
+
         # Check if the URI already exists
         if echo "$CURRENT_URIS" | grep -q "${{ inputs.redirect_uri }}"; then
           echo "Redirect URI already exists. No update needed."
@@ -32,26 +32,28 @@ runs:
           
           # Build the list of redirect URIs (existing + new)
           if [ "$CURRENT_URIS" == "null" ] || [ "$CURRENT_URIS" == "[]" ]; then
-            # No existing URIs - create array with just the new one
             REDIRECT_URIS_JSON="[\"${{ inputs.redirect_uri }}\"]"
           else
-            # Append to existing URIs (use -c for compact output without newlines)
             REDIRECT_URIS_JSON=$(echo "$CURRENT_URIS" | jq -c --arg uri "${{ inputs.redirect_uri }}" '. + [$uri]')
           fi
           
           echo "DEBUG: REDIRECT_URIS_JSON=$REDIRECT_URIS_JSON"
           
-          # Update with SPA redirect URIs using --set (preserves all existing URIs)
+          mapfile -t REDIRECT_URIS_ARRAY < <(echo "$REDIRECT_URIS_JSON" | jq -r '.[]')
+
+          # Optional debug
+          printf 'URI: %s\n' "${REDIRECT_URIS_ARRAY[@]}"
+          
           az ad app update \
             --id "${{ inputs.app_client_id }}" \
-            --set "spa.redirectUris=$REDIRECT_URIS_JSON"
+            --spa-redirect-uris "${REDIRECT_URIS_ARRAY[@]}"
           
           echo "✅ Redirect URI added successfully"
         fi
-        
+
         # Verify the update
         UPDATED_URIS=$(az ad app show \
           --id "${{ inputs.app_client_id }}" \
           --query "spa.redirectUris" -o json)
-        
+
         echo "Updated SPA redirect URIs: $UPDATED_URIS"
